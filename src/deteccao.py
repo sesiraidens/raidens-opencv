@@ -177,3 +177,4 @@ def detectar_cor(frame, nome_cor):
         objetos.extend(objetos2)
         
     return objetos
+
