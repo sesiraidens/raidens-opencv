@@ -1,15 +1,16 @@
 <div align="center">
 
-<img src="https://sesiraidens.github.io/portifolio/assets/logo_color-aNRVU26Y.png" width="80">
+<img src="https://sesiraidens.github.io/portifolio/assets/logo_color-aNRVU26Y.png" alt="Logo RAIDENS" width="140">
 
 # raidens-opencv
 
-Biblioteca de visao computacional para robotica com OpenCV.
+**Visão computacional para robótica: detecção de cores, linhas e navegação por câmera**
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
-![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=flat&logo=opencv&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-d9333b?style=flat)
-![Status](https://img.shields.io/badge/Status-Active-2ea043?style=flat)
+![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white)
+![OpenCV](https://img.shields.io/badge/OpenCV-4.x-5C3EE8?style=flat-square&logo=opencv&logoColor=white)
+![Licença MIT](https://img.shields.io/badge/Licen%C3%A7a-MIT-D9333B?style=flat-square)
+
+[Sobre](#sobre) · [Instalação](#instalação) · [Módulos](#módulos) · [Uso](#uso) · [Receitas](#receitas-com-opencv)
 
 </div>
 
@@ -17,178 +18,152 @@ Biblioteca de visao computacional para robotica com OpenCV.
 
 ## Sobre
 
-O **raidens-opencv** fornece ferramentas de visao computacional para robos: deteccao de cores, deteccao de linha e navegacao visual.
+O **raidens-opencv** dá olhos aos robôs da RAIDENS. Ele parte de um frame da câmera e chega a uma decisão: *a linha está à esquerda*, *há um obstáculo à frente*, *o objeto verde está no centro*. Os módulos ficam em camadas, do pré-processamento da imagem até a navegação, para que cada etapa possa ser testada e ajustada separadamente.
 
----
+Para encontrar os valores HSV ou LAB certos para a sua iluminação, use o [`raidens-lab`](https://github.com/sesiraidens/raidens-lab) e traga os ranges para cá.
 
-## Estrutura
+## Instalação
 
-`
-raidens-opencv/
-├── src/
-│   ├── deteccao.py       # Deteccao de cores HSV
-│   ├── linha.py          # Deteccao de linha com Hough
-│   ├── navegacao.py      # Navegacao visual
-│   └── __init__.py
-├── examples/
-│   ├── detector_cores.py
-│   ├── seguidor_visual.py
-│   └── mapear_area.py
-└── README.md
-`
+```bash
+git clone https://github.com/sesiraidens/raidens-opencv.git
+cd raidens-opencv
+pip install opencv-python numpy
+```
 
----
+## Módulos
 
-## Modulos
+| Módulo | Responsabilidade | Principais elementos |
+|---|---|---|
+| `filters.py` | Pré-processamento | `gaussian_blur`, `median_blur`, `bilateral_filter`, `clahe` |
+| `color_detection.py` | Segmentação em HSV ou LAB | `detect_color`, `get_color_area`, `filter_by_area` |
+| `deteccao.py` | Objetos por cor | `DetectorCor`, dicionário `CORES`, `detectar_cor` |
+| `linha.py` | Linhas pela Transformada de Hough | `DetectorLinha`, `DetectorLinhaPreta`, `DetectorIntersecao` |
+| `navegacao.py` | Decisão de movimento | `NavegadorVisual` |
 
-### deteccao.py - Deteccao de Cores
+Cores pré-definidas em `CORES`: `vermelho`, `verde`, `azul`, `amarelo`, `preto` e `branco`.
 
-Detecta objetos por cor usando mascaras HSV.
+## Uso
 
-`python
+### Detectar objetos por cor
+
+```python
 from src.deteccao import DetectorCor, CORES
 
 detector = DetectorCor()
 detector.abrir_camera(0)
-
 frame = detector.ler_frame()
-objetos = detector.encontrar_objetos(frame, CORES["vermelho"]["hsv_min"], CORES["vermelho"]["hsv_max"])
 
-for obj in objetos:
-    centro = detector.obter_centro(obj)
-    raio = detector.obter_raio(obj)
-    print(f"Objeto em {centro}, raio {raio}")
-`
+vermelho = CORES["vermelho"]
+for obj in detector.encontrar_objetos(frame, vermelho["hsv_min"], vermelho["hsv_max"]):
+    print(detector.obter_centro(obj), detector.obter_raio(obj))
+```
 
-**Cores pre-definidas:**
-- ermelho - Deteccao de area vermelha
-- erde - Deteccao de area verde
-- zul - Deteccao de area azul
-- marelo - Deteccao de area amarela
-- preto - Deteccao de linha preta
-- ranco - Deteccao de area branca
+### Detectar linhas
 
-### linha.py - Deteccao de Linha
-
-Detecta linhas usando Transformada de Hough.
-
-`python
+```python
 from src.linha import DetectorLinha
 
 detector = DetectorLinha()
-frame = camera.read()
-
 linhas = detector.detectar_linhas(frame)
 
 for linha in linhas:
-    angulo = detector.calcular_angulo(linha)
-    comp = detector.calcular_comprimento(linha)
-    print(f"Linha: {comp:.0f}px, {angulo:.1f} graus")
+    print(f"{detector.calcular_comprimento(linha):.0f}px · {detector.calcular_angulo(linha):.1f}°")
 
 direcao = detector.calcular_direcao(linhas, centro_x=320)
-`
+```
 
-### navegacao.py - Navegacao Visual
+### Navegar
 
-Algoritmos de navegacao autonoma.
-
-`python
+```python
 from src.navegacao import NavegadorVisual
 
 nav = NavegadorVisual(largura=640, altura=480)
 
-# Seguir linha preta
-comando = nav.seguir_linha(frame)
-if comando["linha_detectada"]:
-    print(f"Desvio: {comando['direcao']}")
-    
-# Evitar obstaculo
-comando = nav.evitar_obstaculo(frame)
-if comando["obstaculo"]:
-    print(f"Desviar para: {comando['direcao']}")
-    
-# Seguir cor
-comando = nav.seguir_cor(frame, hsv_min=[36, 100, 100], hsv_max=[86, 255, 255])
-`
+cmd = nav.seguir_linha(frame)
+if cmd["linha_detectada"]:
+    print("Desvio:", cmd["direcao"])
 
----
+cmd = nav.evitar_obstaculo(frame)
+if cmd["obstaculo"]:
+    print("Desviar para:", cmd["direcao"])
 
-## Funcoes Principais
+cmd = nav.seguir_cor(frame, hsv_min=[36, 100, 100], hsv_max=[86, 255, 255])
+regioes = nav.mapear_area(frame)   # análise da imagem em grade 3x3
+```
 
-### Converter para HSV
+## Receitas com OpenCV
 
-`python
+<details>
+<summary><b>Máscara de cor em HSV</b></summary>
+
+```python
 import cv2
 import numpy as np
 
-frame_bgr = camera.read()
-frame_hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
+hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+mascara = cv2.inRange(hsv, np.array([36, 100, 100]), np.array([86, 255, 255]))
+```
+</details>
 
-lower = np.array([36, 100, 100])
-upper = np.array([86, 255, 255])
-mascara = cv2.inRange(frame_hsv, lower, upper)
-`
+<details>
+<summary><b>Centro de um contorno</b></summary>
 
-### Encontrar Contornos
-
-`python
+```python
 contornos, _ = cv2.findContours(mascara, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+for c in contornos:
+    if cv2.contourArea(c) > 500:
+        M = cv2.moments(c)
+        cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
+```
+</details>
 
-for contorno in contornos:
-    area = cv2.contourArea(contorno)
-    if area > 500:
-        M = cv2.moments(contorno)
-        cx = int(M["m10"] / M["m00"])
-        cy = int(M["m01"] / M["m00"])
-`
+<details>
+<summary><b>Transformada de Hough</b></summary>
 
-### Transformada de Hough
-
-`python
+```python
+cinza = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 bordas = cv2.Canny(cinza, 50, 150)
-linhas = cv2.HoughLinesP(bordas, 1, np.pi/180, 50, minLineLength=50, maxLineGap=10)
-`
+linhas = cv2.HoughLinesP(bordas, 1, np.pi / 180, 50, minLineLength=50, maxLineGap=10)
+```
+</details>
+
+## Estrutura
+
+```text
+raidens-opencv/
+└── src/   # Filtros, segmentação, detecção e navegação
+```
+
+## Ecossistema RAIDENS
+
+Este repositório faz parte de um conjunto de bibliotecas da equipe. Elas usam os mesmos nomes de classes e convenções, então o que você aprende em uma serve nas outras.
+
+| Repositório | Para quê |
+|---|---|
+| [`raidens-python`](https://github.com/sesiraidens/raidens-python) | Biblioteca principal em Python: sensores, motores e robôs prontos (seguidor, parede, resgate) |
+| [`raidens-arduino`](https://github.com/sesiraidens/raidens-arduino) | As mesmas abstrações em C++ para rodar direto no Arduino |
+| [`raidens-sensores`](https://github.com/sesiraidens/raidens-sensores) | Catálogo completo de sensores com calibração e filtragem |
+| [`raidens-motores`](https://github.com/sesiraidens/raidens-motores) | Motores DC, servo, passo, driver L298N e rodas mecanum |
+| [`raidens-pid`](https://github.com/sesiraidens/raidens-pid) | Controladores PID, PID avançado, cascata e sintonia Ziegler-Nichols |
+| [`raidens-lab`](https://github.com/sesiraidens/raidens-lab) | Calibração interativa de cores em HSV e LAB |
+| [`raidens-obr`](https://github.com/sesiraidens/raidens-obr) | Robô completo para a OBR, integrando sensores, motores e missões |
+| [`raidens-electronics`](https://github.com/sesiraidens/raidens-electronics) | Cálculos e modelos de componentes eletrônicos |
+| [`raidens-3d`](https://github.com/sesiraidens/raidens-3d) | Peças 3D paramétricas geradas em OpenSCAD |
+| [`raidens-ros`](https://github.com/sesiraidens/raidens-ros) | Estrutura de nodes e tópicos ROS 2 |
+| [`raidens-snippets`](https://github.com/sesiraidens/raidens-snippets) | Trechos de código prontos para copiar e colar |
 
 ---
 
-## Exemplos
+<div align="center">
 
-### Detector de Cores
+<img src="https://sesiraidens.github.io/portifolio/assets/logo_color-aNRVU26Y.png" alt="Logo RAIDENS" width="56">
 
-`ash
-python examples/detector_cores.py
-`
+**Equipe RAIDENS** · SESI 192 Alumínio/SP
 
-Abre camera e detecta objetos verdes em tempo real.
+[![Email](https://img.shields.io/badge/Email-sesiraidens%40gmail.com-D14836?style=flat-square&logo=gmail&logoColor=white)](mailto:sesiraidens@gmail.com)
+[![Linktree](https://img.shields.io/badge/Linktree-sesiraidens-39E06B?style=flat-square&logo=linktree&logoColor=white)](https://linktr.ee/sesiraidens)
+[![GitHub](https://img.shields.io/badge/GitHub-sesiraidens-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/sesiraidens)
 
-### Seguidor Visual
+<sub>Desenvolvido pela equipe RAIDENS para fins educacionais. Licenciado sob MIT.</sub>
 
-`ash
-python examples/seguidor_visual.py
-`
-
-Usa camera para seguir linha preta.
-
-### Mapear Area
-
-`ash
-python examples/mapear_area.py
-`
-
-Divide imagem em 3x3 e analisa cada regiao.
-
----
-
-## Dependencias
-
-`ash
-pip install opencv-python numpy
-`
-
----
-
-## Equipe
-
-**RAIDENS - SESI Aluminio 192**
-
-Desenvolvido para uso interno da equipe. Licenciado sob MIT.
+</div>
