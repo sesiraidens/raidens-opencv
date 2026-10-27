@@ -198,3 +198,4 @@ class NavegadorVisual:
                 idx += 1
                 
         return regioes
+
