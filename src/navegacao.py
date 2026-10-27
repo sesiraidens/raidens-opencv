@@ -199,3 +199,4 @@ class NavegadorVisual:
                 
         return regioes
 
+
