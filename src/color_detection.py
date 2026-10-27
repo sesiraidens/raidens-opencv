@@ -34,3 +34,4 @@ def filter_by_area(contours, min_area=500, max_area=100000):
             filtered.append(c)
     return filtered
 
+
