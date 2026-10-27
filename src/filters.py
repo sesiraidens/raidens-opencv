@@ -17,3 +17,4 @@ def clahe(frame, clip_limit=2.0, grid_size=8):
     l = clahe.apply(l)
     lab = cv2.merge([l, a, b])
     return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+
